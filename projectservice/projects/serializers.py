@@ -18,6 +18,25 @@ COMPANY_SERVICE_URL = "http://127.0.0.1:8002/api/companies/"
 ENTITY_SERVICE_URL = "http://127.0.0.1:8002/api/entities/"
 USER_SERVICE_URL = "http://127.0.0.1:8000/api/users/"
 
+
+
+from .models import AllPurpose, ClientPurpose
+
+class AllPurposeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AllPurpose
+        fields = ['id', 'name', 'created_by', 'created_at']
+        read_only_fields = ['created_by', 'created_at']
+
+class ClientPurposeSerializer(serializers.ModelSerializer):
+    purpose = AllPurposeSerializer(read_only=True)
+    purpose_id = serializers.PrimaryKeyRelatedField(queryset=AllPurpose.objects.all(), source='purpose', write_only=True)
+    class Meta:
+        model = ClientPurpose
+        fields = ['id', 'client_id', 'purpose', 'purpose_id', 'assigned_by', 'assigned_at']
+        read_only_fields = ['assigned_by', 'assigned_at']
+
+
 class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project

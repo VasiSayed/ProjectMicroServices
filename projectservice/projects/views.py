@@ -27,6 +27,56 @@ from .serializers import (
 
 from .serializers import CategoryTreeSerializer
 
+
+
+from .models import AllPurpose, ClientPurpose
+from .serializers import AllPurposeSerializer, ClientPurposeSerializer
+
+# --- Create and List AllPurpose (Superadmin only can list all) ---rializer.save(created_by=self.request.user.id)
+
+
+class AllPurposeListCreateAPIView(generics.ListCreateAPIView):
+    queryset = AllPurpose.objects.all()
+    serializer_class = AllPurposeSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user.id)
+
+
+class ClientPurposeCreateAPIView(generics.CreateAPIView):
+    serializer_class = ClientPurposeSerializer
+    queryset = ClientPurpose.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(assigned_by=self.request.user.id)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            print(serializer.errors)  # Prints to your server console
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class ClientPurposeListAPIView(generics.ListAPIView):
+    serializer_class = ClientPurposeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        client_id = self.kwargs.get('client_id')
+        return ClientPurpose.objects.filter(client_id=client_id, delete=False)
+
+
+class ClientPurposeSoftDeleteAPIView(APIView):
+    def patch(self, request, pk):
+        try:
+            obj = ClientPurpose.objects.get(pk=pk)
+            obj.delete = True
+            obj.save()
+            return Response({'detail': 'deleted successfully'}, status=200)
+        except ClientPurpose.DoesNotExist:
+            return Response({'detail': 'Not found'}, status=404)
+
 class CategoryTreeByProjectAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -45,7 +95,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Project
 import requests
 
-USER_SERVICE_URL = "http://192.168.1.28:8000"  # To fetch users if needed
+USER_SERVICE_URL = "https://konstruct.world/users/"  # To fetch users if needed
 
 class OrgProjectUserSummaryAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -70,7 +120,7 @@ class OrgProjectUserSummaryAPIView(APIView):
             if user_ids:
                 try:
                     resp = requests.get(
-                        f"{USER_SERVICE_URL}/api/users/",
+                        f"{USER_SERVICE_URL}/users/",
                         params={"ids": ','.join(map(str, user_ids))},
                         timeout=5
                     )
@@ -90,6 +140,43 @@ class OrgProjectUserSummaryAPIView(APIView):
 class CategorySimpleViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySimpleSerializer
+
+
+class UnitListAPIView(APIView):
+    def get(self, request):
+        project_id = request.query_params.get('project_id')
+        building_id = request.query_params.get('building_id')
+        flat_id = request.query_params.get('flat_id')
+        zone_id = request.query_params.get('zone_id')
+        subzone_id = request.query_params.get('subzone_id')
+
+        flats = Flat.objects.none()
+
+        if flat_id:
+            flats = Flat.objects.filter(id=flat_id)
+
+        elif subzone_id:
+            flats = Flat.objects.filter(subzone_id=subzone_id)
+
+        elif zone_id:
+            flats = Flat.objects.filter(zone_id=zone_id)
+
+        elif building_id:
+            flats = Flat.objects.filter(building_id=building_id)
+
+        elif project_id:
+            flats = Flat.objects.filter(project_id=project_id)
+
+        else:
+            return Response({
+                "error": "At least one identifier (flat_id, subzone_id, zone_id, building_id, project_id) is required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = FlatSerializer(flats, many=True)
+        print(serializer.data)
+        return Response({
+            "unit_ids": [flat['id'] for flat in serializer.data]
+        }, status=status.HTTP_200_OK)
 
 
 class CategoryLevel1SimpleViewSet(viewsets.ModelViewSet):

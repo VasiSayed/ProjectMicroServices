@@ -13,8 +13,11 @@ from .views import (
     CategoryLevel4ViewSet, CategoryLevel5ViewSet, CategoryLevel6ViewSet,
     CategoriesByProjectView,FLatssbyProjectId,BuildingToFlatsByProject,TransferRuleViewSet,
     LevelsWithFlatsByBuilding,ProjectsByOrganizationView,CategorySimpleViewSet,ProjectsByIdsAPIView,ProjectsByOwnershipParamView,
-    OrgProjectUserSummaryAPIView,
-    
+    OrgProjectUserSummaryAPIView,UnitListAPIView,
+AllPurposeListCreateAPIView,
+    ClientPurposeCreateAPIView,
+    ClientPurposeListAPIView,
+    ClientPurposeSoftDeleteAPIView,
         CategoryLevel1SimpleViewSet,
     CategoryLevel2SimpleViewSet,
     CategoryLevel3SimpleViewSet,
@@ -86,7 +89,18 @@ urlpatterns = [
     path('projects/by_organization/<int:organization_id>/', ProjectsByOrganizationView.as_view(), name='projects-by-organization'),
     path('projects/by_ownership/', ProjectsByOwnershipParamView.as_view(), name='projects-by-user-ownership'),
     path('org-project-user-summary/', OrgProjectUserSummaryAPIView.as_view(), name='org-project-user-summary'),
+    path('units-by-id/', UnitListAPIView.as_view(), name='unit-list-api'),
 
+    path('all-purposes/', AllPurposeListCreateAPIView.as_view(), name='all-purpose-list-create'),
+
+    # Assign a purpose to a client (POST)
+    path('client-purpose/', ClientPurposeCreateAPIView.as_view(), name='client-purpose-create'),
+
+    # Get all purposes for a client (GET)
+    path('client-purpose/<int:client_id>/', ClientPurposeListAPIView.as_view(), name='client-purpose-list'),
+
+    # Soft delete a client-purpose mapping (PATCH recommended)
+    path('client-purpose/<int:pk>/soft-delete/', ClientPurposeSoftDeleteAPIView.as_view(), name='client-purpose-soft-delete'),
 
 ]
 urlpatterns += router.urls

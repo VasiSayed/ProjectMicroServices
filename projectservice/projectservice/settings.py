@@ -1,3 +1,8 @@
+
+
+
+
+
 """
 Django settings for projectservice project.
 
@@ -18,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ["*","192.168.1.28", "localhost", "127.0.0.1","192.168.23.214","192.168.1.28",'192.168.1.11','192.168.78.214','192.168.78.48']
+ALLOWED_HOSTS = ['konstruct.world',"*",'192.168.29.168', " 192.168.29.239","192.168.1.28","101.53.133.132", "localhost", "127.0.0.1","192.168.23.214","192.168.1.28",'192.168.1.11','192.168.78.214','192.168.78.48']
 
 
 
@@ -162,11 +167,20 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.16.214:8003",
     "http://192.168.16.214:8005",
 
+"http://101.53.133.132:8002",
+"http://101.53.133.132:8003",
+"http://101.53.133.132:8000",
+
     "http://192.168.23.214:8000",  # Microservice 1 on your machine
     "http://192.168.23.214:8002",  # Microservice 2 on your machine
     "http://192.168.23.214:8003",  # Microservice 3 on your machine
-
+    "http://101.53.133.132:3000",
     "http://192.168.1.28:8000",
+    "https://konstruct.world",
+'http://127.0.0.1:8001',
+    'http://127.0.0.1:8002',
+    'http://127.0.0.1:8003',
+    'http://127.0.0.1:8000',
 ]
 
 

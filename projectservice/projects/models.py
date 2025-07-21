@@ -1,6 +1,26 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 
+
+class AllPurpose(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    created_by = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def _str_(self):
+        return self.name
+
+class ClientPurpose(models.Model):
+    client_id = models.IntegerField()  # This can be user id, org id, or company id (as per your architecture)
+    purpose = models.ForeignKey(AllPurpose, on_delete=models.CASCADE, related_name='client_purposes')
+    assigned_by = models.IntegerField()
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    delete=models.BooleanField(default=False)
+
+    def _str_(self):
+        return f"Client {self.client_id} - {self.purpose.name}"
+
+
 class Project(models.Model):
     name = models.CharField(max_length=100)
     organization_id = models.IntegerField(null=False, blank=False)  
