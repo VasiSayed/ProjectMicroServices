@@ -60,7 +60,7 @@ router.register(r'categories-simple', CategorySimpleViewSet, basename='categorie
 
 
 urlpatterns = [
-    path('projects/by-ids/', ProjectsByIdsAPIView.as_view(), name='projects-by-ids'),
+    path('by-ids/', ProjectsByIdsAPIView.as_view(), name='projects-by-ids'),
 
     path('category-tree-by-project/', CategoryTreeByProjectAPIView.as_view()),
     path('phases/by-project/<int:project_id>/', PhaseListByProject.as_view(), name='phases-by-project'),

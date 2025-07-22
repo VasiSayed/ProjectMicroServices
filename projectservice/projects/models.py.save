@@ -36,8 +36,7 @@ class Project(models.Model):
 
     def __str__(self):
         return f"{self.name} (Org: {self.organization_id}, Co: {self.company_id}, Ent: {self.entity_id})"
-    
-    
+
 class Purpose(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     name = models.ForeignKey(ClientPurpose,on_delete=models.CASCADE, related_name='purposes')

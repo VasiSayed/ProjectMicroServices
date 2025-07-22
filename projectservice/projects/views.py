@@ -58,6 +58,25 @@ class ClientPurposeCreateAPIView(generics.CreateAPIView):
 
 
 
+
+
+class ProjectsByIdsAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]  # or AllowAny if public
+
+    def post(self, request):
+        ids = request.data.get("ids")
+        if not ids or not isinstance(ids, list):
+            return Response({"detail": "List of ids required as 'ids'"}, status=400)
+        
+        projects = Project.objects.filter(id__in=ids)
+        data = ProjectSerializer(projects, many=True).data
+
+        # Return as dict: {id: project_obj}
+        result = {str(item['id']): item for item in data}
+        return Response(result,status=200)
+
+
+
 class ClientPurposeListAPIView(generics.ListAPIView):
     serializer_class = ClientPurposeSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -142,41 +161,54 @@ class CategorySimpleViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySimpleSerializer
 
 
+
 class UnitListAPIView(APIView):
     def get(self, request):
-        project_id = request.query_params.get('project_id')
-        building_id = request.query_params.get('building_id')
+        filters = {}
         flat_id = request.query_params.get('flat_id')
-        zone_id = request.query_params.get('zone_id')
         subzone_id = request.query_params.get('subzone_id')
-
-        flats = Flat.objects.none()
+        zone_id = request.query_params.get('zone_id')
+        building_id = request.query_params.get('building_id')
+        project_id = request.query_params.get('project_id')
+        level_id = request.query_params.get('level_id')
 
         if flat_id:
-            flats = Flat.objects.filter(id=flat_id)
+            filters['id'] = flat_id
+        if subzone_id:
+            filters['subzone_id'] = subzone_id
+        if zone_id:
+            filters['zone_id'] = zone_id
+        if building_id:
+            filters['building_id'] = building_id
+        if project_id:
+            filters['project_id'] = project_id
+        if level_id:
+            filters['level_id'] = level_id
 
-        elif subzone_id:
-            flats = Flat.objects.filter(subzone_id=subzone_id)
-
-        elif zone_id:
-            flats = Flat.objects.filter(zone_id=zone_id)
-
-        elif building_id:
-            flats = Flat.objects.filter(building_id=building_id)
-
-        elif project_id:
-            flats = Flat.objects.filter(project_id=project_id)
-
-        else:
+        if not filters:
             return Response({
-                "error": "At least one identifier (flat_id, subzone_id, zone_id, building_id, project_id) is required."
+                "error": "At least one identifier (flat_id, subzone_id, zone_id, building_id, project_id, level_id) is required."
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = FlatSerializer(flats, many=True)
-        print(serializer.data)
+        flats = Flat.objects.filter(**filters).select_related('flattype').prefetch_related('flattype__rooms')
+
+        response_data = []
+        for flat in flats:
+            rooms = []
+            if flat.flattype:
+                rooms = [
+                    {"id": r.id, "name": r.rooms}
+                    for r in flat.flattype.rooms.all()
+                ]
+            response_data.append({
+                "unit_id": flat.id,
+                "rooms": rooms
+            })
+
         return Response({
-            "unit_ids": [flat['id'] for flat in serializer.data]
+            "units": response_data
         }, status=status.HTTP_200_OK)
+
 
 
 class CategoryLevel1SimpleViewSet(viewsets.ModelViewSet):
