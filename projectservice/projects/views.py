@@ -10,6 +10,10 @@ from .models import (
     Zone, Flattype, Flat,Subzone,Rooms,    Category, CategoryLevel1, CategoryLevel2, CategoryLevel3,
     CategoryLevel4, CategoryLevel5, CategoryLevel6,TransferRule
 )
+from .serializers import CategoryTreeSerializer
+from .models import AllPurpose, ClientPurpose
+from .serializers import AllPurposeSerializer, ClientPurposeSerializer
+import requests
 from .serializers import (
     ProjectSerializer, PurposeSerializer, PhaseSerializer,
     StageSerializer, BuildingSerializer, LevelSerializer,
@@ -25,12 +29,8 @@ from .serializers import (
 
 )
 
-from .serializers import CategoryTreeSerializer
 
-
-
-from .models import AllPurpose, ClientPurpose
-from .serializers import AllPurposeSerializer, ClientPurposeSerializer
+USER_SERVICE_URL = "https://konstruct.world/users/"  # To fetch users if needed
 
 # --- Create and List AllPurpose (Superadmin only can list all) ---rializer.save(created_by=self.request.user.id)
 
@@ -108,13 +108,6 @@ class CategoryTreeByProjectAPIView(APIView):
         print(serializer.data)
         return Response(serializer.data)
     
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .models import Project
-import requests
-
-USER_SERVICE_URL = "https://konstruct.world/users/"  # To fetch users if needed
 
 class OrgProjectUserSummaryAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -156,10 +149,11 @@ class OrgProjectUserSummaryAPIView(APIView):
             result.append(org_data)
         return Response(result)
 
+
+
 class CategorySimpleViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySimpleSerializer
-
 
 
 class UnitListAPIView(APIView):
@@ -200,15 +194,20 @@ class UnitListAPIView(APIView):
                     {"id": r.id, "name": r.rooms}
                     for r in flat.flattype.rooms.all()
                 ]
+            # Include all hierarchy for downstream microservices
             response_data.append({
                 "unit_id": flat.id,
+                "building_id": flat.building_id if flat.building_id else None,
+                "zone_id": flat.zone_id if flat.zone_id else None,
+                "subzone_id": flat.subzone_id if flat.subzone_id else None,
+                "level_id": flat.level_id if flat.level_id else None,
+                "project_id": flat.project_id,
                 "rooms": rooms
             })
 
         return Response({
             "units": response_data
         }, status=status.HTTP_200_OK)
-
 
 
 class CategoryLevel1SimpleViewSet(viewsets.ModelViewSet):
@@ -366,6 +365,8 @@ class FlattypeViewSet(viewsets.ModelViewSet):
         self.perform_create(serializer)
         return Response(serializer.data, status=201)
 
+
+import traceback
 class FlatViewSet(viewsets.ModelViewSet):
     queryset = Flat.objects.all()
     serializer_class = FlatSerializer
@@ -375,9 +376,17 @@ class FlatViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             print("Validation Errors:", serializer.errors)
-            return Response(serializer.errors, status=400)
-        self.perform_create(serializer)
-        return Response(serializer.data, status=201)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            self.perform_create(serializer)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print("Exception occurred while saving Flat:", str(e))
+            traceback.print_exc()  # This prints the full stack trace
+            return Response(
+                {"error": "Internal Server Error", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class PurposeListByProject(APIView):

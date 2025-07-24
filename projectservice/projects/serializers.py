@@ -5,7 +5,7 @@ from .models import (
     Project, Purpose, Phase, Stage, Building, Level,
     Zone, Flattype, Flat,Subzone,Rooms,
     Category, CategoryLevel1, CategoryLevel2, CategoryLevel3,
-    CategoryLevel4, CategoryLevel5, CategoryLevel6,TransferRule
+    CategoryLevel4, CategoryLevel5, CategoryLevel6,TransferRule,AllPurpose, ClientPurpose
 )
 
 from rest_framework.views import APIView
@@ -19,14 +19,12 @@ ENTITY_SERVICE_URL = "http://127.0.0.1:8002/api/entities/"
 USER_SERVICE_URL = "http://127.0.0.1:8000/api/users/"
 
 
-
-from .models import AllPurpose, ClientPurpose
-
 class AllPurposeSerializer(serializers.ModelSerializer):
     class Meta:
         model = AllPurpose
         fields = ['id', 'name', 'created_by', 'created_at']
         read_only_fields = ['created_by', 'created_at']
+
 
 class ClientPurposeSerializer(serializers.ModelSerializer):
     purpose = AllPurposeSerializer(read_only=True)
@@ -84,22 +82,117 @@ class ProjectSerializer(serializers.ModelSerializer):
         return data
     
 
+# class PurposeSerializer(serializers.ModelSerializer):
+#     name = ClientPurposeSerializer(read_only=True)
+#     name_id = serializers.PrimaryKeyRelatedField(
+#         queryset=ClientPurpose.objects.all(),
+#         source='name',
+#         write_only=True
+#     )
+
+#     class Meta:
+#         model = Purpose
+#         fields = ['id', 'project', 'name', 'name_id', 'is_active']
+
 class PurposeSerializer(serializers.ModelSerializer):
+    name = ClientPurposeSerializer(read_only=True)
+    name_id = serializers.PrimaryKeyRelatedField(
+        queryset=ClientPurpose.objects.none(),  # Will be filtered per request
+        source='name',
+        write_only=True
+    )
+
     class Meta:
         model = Purpose
-        fields = ['id', 'project', 'name', 'is_active']
+        fields = ['id', 'project', 'name', 'name_id', 'is_active']
 
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        
+        print(f"🔍 SERIALIZER DEBUG - Request exists: {request is not None}")
+        
+        if request:
+            print(f"🔍 SERIALIZER DEBUG - Request method: {request.method}")
+            print(f"🔍 SERIALIZER DEBUG - Request path: {request.path}")
+            print(f"🔍 SERIALIZER DEBUG - Request user: {request.user}")
+            print(f"🔍 SERIALIZER DEBUG - User is authenticated: {request.user.is_authenticated}")
+            
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                # Try multiple ways to get client_id
+                user_client_id = None
+                
+                # Method 1: Direct client_id field
+                if hasattr(request.user, 'client_id'):
+                    user_client_id = request.user.client_id
+                    print(f"🔍 SERIALIZER DEBUG - Found client_id in user: {user_client_id}")
+                
+                # Method 2: Use user.id as client_id (common pattern)
+                if not user_client_id:
+                    user_client_id = request.user.id
+                    print(f"🔍 SERIALIZER DEBUG - Using user.id as client_id: {user_client_id}")
+                
+                # Method 3: Try to get from URL parameters
+                if not user_client_id and hasattr(request, 'resolver_match'):
+                    url_kwargs = getattr(request.resolver_match, 'kwargs', {})
+                    user_client_id = url_kwargs.get('client_id') or url_kwargs.get('user_id')
+                    print(f"🔍 SERIALIZER DEBUG - Found in URL kwargs: {user_client_id}")
+                
+                print(f"🔍 SERIALIZER DEBUG - Final user_client_id: {user_client_id}")
+                
+                if user_client_id:
+                    # Filter ClientPurposes by this client_id
+                    queryset = ClientPurpose.objects.filter(client_id=user_client_id)
+                    all_client_purposes = list(queryset.values('id', 'client_id', 'purpose__name'))
+                    print(f"🔍 SERIALIZER DEBUG - Available ClientPurposes: {all_client_purposes}")
+                    print(f"🔍 SERIALIZER DEBUG - ClientPurpose count: {queryset.count()}")
+                    
+                    # Check if ClientPurpose ID 10 exists in this queryset
+                    cp_10_exists = queryset.filter(id=10).exists()
+                    print(f"🔍 SERIALIZER DEBUG - ClientPurpose ID 10 exists: {cp_10_exists}")
+                    
+                    self.fields['name_id'].queryset = queryset
+                else:
+                    print("🔍 SERIALIZER DEBUG - No client_id found, using empty queryset")
+                    self.fields['name_id'].queryset = ClientPurpose.objects.none()
+            else:
+                print("🔍 SERIALIZER DEBUG - User not authenticated or no user")
+                self.fields['name_id'].queryset = ClientPurpose.objects.none()
+        else:
+            print("🔍 SERIALIZER DEBUG - No request found")
+            self.fields['name_id'].queryset = ClientPurpose.objects.none()
+            
+        # Final queryset check
+        final_queryset = self.fields['name_id'].queryset
+        print(f"🔍 SERIALIZER DEBUG - Final queryset count: {final_queryset.count()}")
+        print(f"🔍 SERIALIZER DEBUG - Final queryset IDs: {list(final_queryset.values_list('id', flat=True))}")
+        
 class PhaseSerializer(serializers.ModelSerializer):
+    purpose = PurposeSerializer(read_only=True)
+    purpose_id = serializers.PrimaryKeyRelatedField(
+        queryset=Purpose.objects.all(),
+        source='purpose',
+        write_only=True
+    )
+
     class Meta:
         model = Phase
-        fields = ['id', 'project', 'purpose', 'name', 'is_active']
+        fields = ['id', 'project', 'purpose', 'purpose_id', 'name', 'is_active']
+
 
 
 class StageSerializer(serializers.ModelSerializer):
+    purpose = PurposeSerializer(read_only=True)
+    purpose_id = serializers.PrimaryKeyRelatedField(
+        queryset=Purpose.objects.all(),
+        source='purpose',
+        write_only=True
+    )
+
     class Meta:
         model = Stage
-        fields = ['id','project','purpose', 'phase', 'name', 'sequence', 'is_active']
+        fields = ['id','project','purpose', 'purpose_id', 'phase', 'name', 'sequence', 'is_active']
+
 
 
 class SubzoneSerializer(serializers.ModelSerializer):
@@ -107,14 +200,6 @@ class SubzoneSerializer(serializers.ModelSerializer):
         model = Subzone
         fields = ['id', 'zone', 'name']
 
-
-
-
-
-class BuildingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Building
-        fields = ['id', 'name', 'project']
 
 class LevelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -133,11 +218,8 @@ class FlattypeSerializer(serializers.ModelSerializer):
 class FlatSerializer(serializers.ModelSerializer):
     class Meta:
         model = Flat
-        fields = ['id', 'building', 'level', 'Flattype', 'number']
+        fields = ['id', 'project', 'building', 'level', 'flattype', 'number']
 
-
-
-# serializers.py
 
 class FlatTypeMiniSerializer(serializers.ModelSerializer):
     class Meta:
@@ -353,10 +435,6 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 
-class FlatSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Flat
-        fields = ['id', 'number', 'level', 'building', 'project','flattype']  
 
 class ZoneWithFlatsSerializer(serializers.ModelSerializer):
     flats = serializers.SerializerMethodField()

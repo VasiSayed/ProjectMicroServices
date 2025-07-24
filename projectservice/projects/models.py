@@ -11,7 +11,7 @@ class AllPurpose(models.Model):
         return self.name
 
 class ClientPurpose(models.Model):
-    client_id = models.IntegerField()  # This can be user id, org id, or company id (as per your architecture)
+    client_id = models.IntegerField() 
     purpose = models.ForeignKey(AllPurpose, on_delete=models.CASCADE, related_name='client_purposes')
     assigned_by = models.IntegerField()
     assigned_at = models.DateTimeField(auto_now_add=True)
@@ -180,6 +180,7 @@ class CategoryLevel6(models.Model):
     category_level5 = models.ForeignKey(CategoryLevel5, null=False, on_delete=models.CASCADE, related_name='level6')
     name = models.CharField(max_length=40, null=False, blank=False)
     created_by = models.IntegerField(null=True, blank=True)
+
 
 class TransferRule(models.Model):
     project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='transfer_rule')
